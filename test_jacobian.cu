@@ -18,6 +18,59 @@
 #define gridsize 2
 #define blocksize batchsize/gridsize
 
+static int check_retval(void *returnvalue, const char *funcname, int opt)
+{
+  int *retval;
+
+  /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
+  if (opt == 0 && returnvalue == NULL) {
+    fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+	    funcname);
+    return(1); }
+
+  /* Check if retval < 0 */
+  else if (opt == 1) {
+    retval = (int *) returnvalue;
+    if (*retval < 0) {
+      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with retval = %d\n\n",
+	      funcname, *retval);
+      return(1); }}
+
+  /* Check if function returned NULL pointer - no memory allocated */
+  else if (opt == 2 && returnvalue == NULL) {
+    fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+	    funcname);
+    return(1); }
+
+  return(0);
+}
+static int blockJacInit(SUNMatrix J)
+{
+    
+    int rowptrs[nchem+1];
+    int colvals[nnz];
+
+    SUNMatZero(J);
+    for (int r = 0; r < nchem+1; r++)
+    {
+        rowptrs[r] = r*nchem;
+        printf("rowptrs[%d] = %d\n", r, rowptrs[r]);
+    }
+
+    int bIdx;
+    for (int c = 0; c < nnz; c++)
+    {
+        bIdx = c /nnz; 
+        colvals[c] = bIdx*nchem + c%nchem;
+        printf("colvals[%d] = %d\n", c, colvals[c]);
+    }
+    // copy rowptrs, colvals to the device
+    SUNMatrix_cuSparse_CopyToDevice(J, NULL, rowptrs, colvals);
+    cudaDeviceSynchronize();
+    return (0);
+}
+
+
 static int JacInit(SUNMatrix J)
 {
     
@@ -121,11 +174,26 @@ int main()
   N_VCopyToDevice_Cuda(d_b);
 
 
+  /* Create the device matrix */
   SUNMatrix J;
-  J = SUNMatrix_cuSparse_NewCSR(N, N, N*nchem, cusp_handle);
-  
+  //J = SUNMatrix_cuSparse_NewCSR(N, N, N*nchem, cusp_handle);
+  // JacInit(J);
+  // Jacobian(J);
+  // Instead of using the CSR, we use BCSR
+  J = SUNMatrix_cuSparse_NewBlockCSR(batchsize, nchem, nchem, nchem*nchem, cusp_handle);
+  if(check_retval((void *)J, "SUNMatrix_cuSparse_NewBlockCSR", 0)) return(1);
+  SUNMatrix_cuSparse_SetFixedPattern(J, 1);
   JacInit(J);
   Jacobian(J);
+
+
+  /*
+  // get the rows and col in the Sparse matrix
+  int M = SUNMatrix_cuSparse_Rows(J);
+  int N = SUNMatrix_cuPsarse_Columns(J);
+  int nz = SUNMatrix_cuSparse_NNZ(J);
+*/
+
 
   // create an empty host array to store it and print it
   SUNMatrix Jhost;

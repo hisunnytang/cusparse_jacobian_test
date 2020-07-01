@@ -34,7 +34,7 @@ NVCC        = /usr/local/cuda/bin/nvcc
 NVCCFLAGS   = -ccbin=${CXX} -std=c++11  -arch sm_30
 LD          = ${NVCC}
 LDFLAGS     =  ${NVCCFLAGS} -Xcompiler \"-Wl,-rpath,${libdir}\"
-LIBS        =  -lm /usr/lib64/librt.so -lcusolver -lcusparse
+LIBS        =  -lm /usr/lib64/librt.so -lcusolver -lcusparse -lhdf5 -lhdf5_hl
 
 TMP_INCS = ${includedir}
 INCLUDES = $(addprefix -I, ${TMP_INCS})
@@ -42,11 +42,11 @@ INCLUDES = $(addprefix -I, ${TMP_INCS})
 TMP_LIBDIRS  = ${libdir}
 LIBDIRS      = $(addprefix -L, ${TMP_LIBDIRS})
 
-TMP_SUNDIALSLIBS =  sundials_nvecserial sundials_nveccuda sundials_sunmatrixdense sundials_sunmatrixsparse sundials_sunmatrixcusparse sundials_sunlinsolcusolversp
+TMP_SUNDIALSLIBS = sundials_cvode  sundials_nvecserial sundials_nveccuda sundials_sunmatrixdense sundials_sunmatrixsparse sundials_sunmatrixcusparse sundials_sunlinsolcusolversp
 SUNDIALSLIBS     = $(addprefix -l, ${TMP_SUNDIALSLIBS})
 LIBRARIES = ${SUNDIALSLIBS} ${LIBS}
 
-EXAMPLES = test_jacobian  test_sunlinsol_cusolversp_batchqr
+EXAMPLES = prey_predator test_jacobian  test_sunlinsol_cusolversp_batchqr
 EXAMPLES_DEPENDENCIES =  test_sunlinsol sundials_nvector
 
 OBJECTS = ${EXAMPLES:=.o}
