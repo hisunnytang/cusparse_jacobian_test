@@ -84,6 +84,7 @@ static int Jacobian(SUNMatrix J)
 int main()
 {
 
+  SUNLinearSolver LS;                 /* linear solver object          */
   cusparseStatus_t cusp_status;
   cusolverStatus_t cusol_status;
   cusparseHandle_t cusp_handle;
@@ -108,6 +109,18 @@ int main()
   d_x = N_VNew_Cuda(N);
   d_b = N_VNew_Cuda(N);
 
+  realtype *xdata, *bdata;
+  xdata = N_VGetHostArrayPointer_Cuda(d_x);
+  bdata = N_VGetHostArrayPointer_Cuda(d_b);
+  for (int i=0; i<N; i++)
+  {
+      xdata[i] = i % 2;
+      bdata[i] = 1.0 + i%2;
+  }
+  N_VCopyToDevice_Cuda(d_x);
+  N_VCopyToDevice_Cuda(d_b);
+
+
   SUNMatrix J;
   J = SUNMatrix_cuSparse_NewCSR(N, N, N*nchem, cusp_handle);
   
@@ -125,6 +138,43 @@ int main()
 
     printf("\nJhost =\n");
     SUNSparseMatrix_Print(Jhost,stdout);
+
+    // create a linear solver object
+    // from J
+
+
+    LS = SUNLinSol_cuSolverSp_batchQR(d_x, J, cusol_handle);
+
+
+  if (LS == NULL) {
+    printf("FAIL: SUNLinSol_cuSolverSp_batchQR returned NULL\n");
+    return(1);
+  }
+
+  // need to first initialize sunlinsol
+  SUNLinSolInitialize(LS);
+  sync_device();
+  // first we need a linsolsetup;
+  int failure;
+  failure = SUNLinSolSetup(LS, J);
+  sync_device();
+
+  N_Vector tmp;
+  tmp = N_VClone(d_x);
+
+  // perform solve
+  failure = SUNLinSolSolve(LS, J, d_x, d_b, 0.001);
+  sync_device();
+
+
+    N_VCopyFromDevice_Cuda(d_x); /* copy solution from device */
+    printf("x (computed)\n");
+    N_VPrint_Cuda(d_x);
+
+    N_VCopyFromDevice_Cuda(d_b);
+    printf("\nb = Ax (reference)\n");
+    N_VPrint_Cuda(d_b);
+
 }
 
 
