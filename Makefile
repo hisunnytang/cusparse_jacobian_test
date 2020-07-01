@@ -46,7 +46,7 @@ TMP_SUNDIALSLIBS = sundials_cvode  sundials_nvecserial sundials_nveccuda sundial
 SUNDIALSLIBS     = $(addprefix -l, ${TMP_SUNDIALSLIBS})
 LIBRARIES = ${SUNDIALSLIBS} ${LIBS}
 
-EXAMPLES = prey_predator test_jacobian  test_sunlinsol_cusolversp_batchqr
+EXAMPLES = prey_predator test_prey_predator test_jacobian  test_sunlinsol_cusolversp_batchqr
 EXAMPLES_DEPENDENCIES =  test_sunlinsol sundials_nvector
 
 OBJECTS = ${EXAMPLES:=.o}
